@@ -1,0 +1,187 @@
+﻿@page "/"
+
+@using Sevens.Game.Data
+@inject GameService GameService
+
+    <h3>
+        <img src="Images/clovers.png" width="40px"/>Sevens Game In Blazor for BJSS by C. Clapham
+    </h3>
+
+<div class="row">
+    <div class="col-sm-8">
+
+        @if (IsGameOver)
+        {
+            <h2> Game Over - @gameState.GameOver.Player.Name() Won the game</h2>
+
+            <button class="btn btn-primary" @onclick="ResetGame">Reset Game to play again</button>
+        }
+        else
+        {
+            <div id="Board" class="text-center">
+                <table>
+                    <thead>
+                        <tr>
+                            <td>
+                                Diamonds
+                                <img src="Images/D.png" />
+                            </td>
+                            <td>
+                                Spades
+                                <img src="Images/S.png" />
+                            </td>
+                            <td>
+                                Hearts
+                                <img src="Images/H.png" />
+                            </td>
+                            <td>
+                                Clubs
+                                <img src="Images/C.png" />
+                            </td>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            @foreach (var suit in gameState.BoardState.Values)
+                            {
+                                <td>
+                                    @if (suit.IsOpen)
+                                    {
+                                        string colour = suit.Suit == Suits.Diamonds || suit.Suit == Suits.Hearts ? "red" : "black";
+                                        <button class="btn btn-card @colour">@suit.HighValue.ToName() <img src="Images/@suit.Suit.ToName(".png")" /></button>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                        <tr>
+                            @foreach (var suit in gameState.BoardState.Values)
+                            {
+                                <td>
+                                    @if (suit.IsOpen && suit.LowValue != CardValue.Seven)
+                                    {
+                                        string colour = suit.Suit == Suits.Diamonds || suit.Suit == Suits.Hearts ? "red" : "black";
+                                        <button class="btn btn-card @colour">@suit.LowValue.ToName() <img src="Images/@suit.Suit.ToName(".png")" /></button>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    </tbody>
+                </table>
+
+                @if (IsCardError)
+                {
+                    <div>
+                        <h2>That card can't be played yet, please play a different card.</h2>
+                    </div>
+
+                }
+
+                <div class="row">
+                    @foreach (var card in gameState.PlayerHand)
+                    {
+                        string colour = card.Suit == Suits.Diamonds || card.Suit == Suits.Hearts ? "red" : "black";
+                        <button class="btn btn-card @colour" @onclick="(async e => await PlayCard(card))">@card.Value.ToName() <img src="Images/@card.Suit.ToName(".png")" /></button>
+                    }
+                </div>
+                <div class="row">
+                    <button class="btn btn-light" @onclick="(async e => await PlayCard((Card)null))">Pass</button>
+                </div>
+            </div>
+        }
+
+    </div>
+    <div class="col-sm-4 history">
+        @if (!gameState.BoardState[Suits.Diamonds].IsOpen)
+        {
+            <div class="text-center">
+                <button class="btn btn-primary" @onclick="StartGame">Start Game</button>
+            </div>
+        }
+        else
+        {
+            <h3>Move History</h3>
+
+            @foreach (var move in gameState.History)
+            {
+                <div class="row">
+                    <div class="col-sm-3">
+                        Turn #@move.Key
+                    </div>
+                    <div class="col-sm-9">
+                        @move.Value.Player.Name() played @(move.Value.move != null ? move.Value.move.GetFriendlyName() : "Passed")
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+
+
+@code {
+    private Game gameState;
+    private bool IsCardError = false;
+    private bool IsGameOver = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ResetGame();
+    }
+
+    private async Task ResetGame()
+    {
+        IsGameOver = false;
+        gameState = await GameService.SetupGameAsync();
+    }
+
+    private async Task StartGame()
+    {
+        gameState = await GameService.StartGame();
+
+        if (!gameState.NextPlayer.IsHuman())
+        {
+            await AITurn();
+        }
+    }
+
+    private async Task AITurn()
+    {
+        gameState = await GameService.PlayGame();
+
+        if (gameState.GameOver.IsGameOver)
+        {
+            IsGameOver = true;
+            return;
+        }
+
+        if (!gameState.NextPlayer.IsHuman())
+        {
+            await AITurn();
+        }
+    }
+
+    private async Task PlayCard(Card? card)
+    {
+        IsCardError = false;
+        try
+        {
+            gameState = await GameService.PlayGame(card);
+        }
+        catch (UnableToPlayCardException e)
+        {
+            IsCardError = true;
+            return;
+        }
+
+        if (gameState.GameOver.IsGameOver)
+        {
+            IsGameOver = true;
+            return;
+        }
+
+        if (!gameState.NextPlayer.IsHuman())
+        {
+            await AITurn();
+        }
+    }
+}

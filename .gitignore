@@ -1,0 +1,11 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/Sevens/.vs/Sevens/v16
+/.vs
+/Sevens/.vs/Sevens
+/Sevens/Sevens.Game/bin/Debug/netcoreapp3.1
+/Sevens/Sevens.Game/obj
+/Sevens/Sevens.Game.Tests
+/Sevens/Sevens.Game.Engine
